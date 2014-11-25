@@ -7,7 +7,9 @@
 #define FINE_THRESHOLD 100 //if a student fine exceeds threshold, he can't issue books
 #define MAX_TRANSACTIONS_PER_DAY 50
 #define MAX_ISSUE_DURATION 30
-
+#define MAX_BOOKS_DAMAGED 5
+//initializing number of books randomly gets damaged by library while initializing
+int number_of_books_damaged_by_library=0;
 typedef bookreq {
 	int student_id; //student who is requesting the book
 	int book_id; //book id whose request
@@ -102,14 +104,29 @@ proctype timer(){//should communicate with all processes and increment time only
 }
 
 proctype library(){
+
+	
+	
+	
+
 	
 	//initializing claim queue of books, -1 book not claimed by anyone
-
 	int bc=0;
 	do
 	:: bc < current_book_count ->
 		all_books[bc].book_id = bc;
-		all_books[bc].damaged = false;
+		
+		//initializing books damaged randomly
+		do
+		::number_of_books_damaged_by_library<MAX_BOOKS_DAMAGED ->
+			all_books[bc].damaged=true;
+			number_of_books_damaged_by_library++;			
+		::number_of_books_damaged_by_library<MAX_BOOKS_DAMAGED ->
+			all_books[bc].damaged=false;
+		::break;
+		od	
+
+		//all_books[bc].damaged = false;
 		all_books[bc].issue_time = false;
 		all_books[bc].borrower = -1;
 		all_books[bc].issue_time = -1;
