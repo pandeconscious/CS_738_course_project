@@ -77,9 +77,9 @@ chan student_to_timer_channel[MAX_STUDENTS] = [0] of {bool}; //library send to t
 proctype timer(){//should communicate with all processes and increment time only when all processes have read the time
 	do
 	::current_time = current_time+1;//increase time and go ahead asking the students and library to do whatever they want to do before furthe stepping in time
-		/*printf("%d\n", current_time);
+		
 		timer_to_library_channel!true; 	
-		library_to_timer_channel?true;*/	
+		library_to_timer_channel?true;
 		int i = 0;// send message to all the students
 		do
 		::i < current_student_count ->
@@ -88,7 +88,7 @@ proctype timer(){//should communicate with all processes and increment time only
 		::else ->
 			break;
 		od
-		/*
+		
 		//library_to_timer_channel?true;
 		i = 0;// send message to all the students
 		do
@@ -97,7 +97,7 @@ proctype timer(){//should communicate with all processes and increment time only
 			i++;
 		::else ->
 			break;
-		od*/
+		od
 	od
 }
 
@@ -138,38 +138,28 @@ proctype library(){
 	
 		//library_to_timer_channel!true;
 		//fine calculation for each student
-		/*
-		int st_it=0;
-		do
-		::st_it < current_student_count ->
-			
-			//iterate over every each book for calculating fine
-			int bk_it=0;
-			do
-			::bk_it < MAX_BOOK_ISSUED_TO_STUDENT ->
-				
-			od;	
-		:: else ->
-			break;
-		od
-		printf("Inside library\n");*/
+		printf("\nTimer to library received at time %d:",current_time);
 		library_to_timer_channel!true;
 		
 	
 	//library receives a book return message
 		
 	::book_return_channel?book_ret_msg ->
-		printf("\nReceived return msg");
 		if
 		//if the book is not damaged update the database in accordance with return
 		::book_ret_msg.book_id != -1 && all_books[book_ret_msg.book_id].damaged == false->
-			printf("\n Received return msg");
+			printf("\nReceived return msg from %d at %d",book_ret_msg.student_id,current_time);
 			all_books[book_ret_msg.book_id].issued  = false;	
 			all_books[book_ret_msg.book_id].borrower  = -1;	
 			all_books[book_ret_msg.book_id].issue_time = -1;	
 			all_books[book_ret_msg.book_id].expected_return_time = -1;	
-
-			all_students[book_ret_msg.student_id].total_books_issued--;
+			
+			if
+			::all_students[book_ret_msg.student_id].total_books_issued > 0 -> 
+				all_students[book_ret_msg.student_id].total_books_issued--;
+			::else->
+				skip
+			fi
 			
 			//in student's array for issued books find the index of this book
 
@@ -187,24 +177,25 @@ proctype library(){
 			::else ->
 				break;
 			od
-		::else ; //else here means book is damaged (if required add code here)
+		::else 
+			printf("\nReceived return msg(damaged book) from %d at %d",book_ret_msg.student_id,current_time); //else here means book is damaged (if required add code here)
 		fi
 	
 	//library receives a book request message
 	
 		
 	::book_request_channel?book_req_msg ->
-		printf("\nBook Request");	
+		
 		bookreq_resp bookreq_resp_msg;	
 		bookreq_resp_msg.student_id = book_req_msg.student_id;
 		bookreq_resp_msg.book_id = book_req_msg.book_id;
-		printf("Request from student : %d\n", bookreq_resp_msg.student_id );
+		printf("\nRequest received for %d from student %d at %d",bookreq_resp_msg.book_id,bookreq_resp_msg.student_id,current_time);
 
 		if
 		::all_books[book_req_msg.book_id].issued == false && //no one has borrowed the book
 			all_students[book_req_msg.student_id].total_books_issued < MAX_BOOK_ISSUED_TO_STUDENT //books issued haven't exceeded the limit
 			->
-				
+						
 				bookreq_resp_msg.granted = true;
 				all_books[book_req_msg.book_id].borrower = book_req_msg.student_id; //make this student the borrower in the database 
 				all_students[book_req_msg.student_id].total_books_issued++; //increment num of books issued to the student
@@ -228,8 +219,9 @@ proctype library(){
 		::else->
 				bookreq_resp_msg.granted = false;
 		fi
-		printf("%d resp\n",bookreq_resp_msg.granted);
+		
 		book_request_response_channel[bookreq_resp_msg.student_id]!bookreq_resp_msg;
+		printf("\nSent book response msg from library to %d at %d",bookreq_resp_msg.student_id,current_time);
 		
 	od
 	
@@ -264,7 +256,7 @@ proctype student(int student_id){
 	all_students[student_id].fine = 0;
 	//initialization ends
 	
-	printf("student :%d \n", student_id);
+	
 	
 	do
 		
@@ -274,18 +266,19 @@ proctype student(int student_id){
 		//number of transactions in a day chosen randomly
 		
 		//random no generation starts
+		printf("\nStudent received time from library at %d",current_time);
 		int nr = 0; //nr holds how many transactions to be done
 		do
 		::nr < MAX_TRANSACTIONS_PER_DAY -> nr++;		// randomly increment
 		:: break;	// or stop 
 		od
 		//random no genration ends
-		printf("\nnr:%d  \n",nr);
+		
 		
 		do
 		::nr > 0 ->
 			//randomly generate the book id 
-			//printf("Hereeeee:");	
+			
 			//random no generation starts
 			int brq = 0; //bi holds how many books can be requested or claimed 
 			do
@@ -294,9 +287,9 @@ proctype student(int student_id){
 			od
 			//random no genration ends
 			
-			printf("\n%d brq \n", brq);
 			
-			//ceate book request message
+			
+			//create book request message
 			bookreq book_req_msg;
 			book_req_msg.student_id = student_id;
 			book_req_msg.book_id = brq;
@@ -315,12 +308,11 @@ proctype student(int student_id){
 			
 			
 			//pick the book to return
-			//int offset_itr = 0;
+			
 			
 			int arr_itr = 0;
 			do
 			::arr_itr < MAX_BOOK_ISSUED_TO_STUDENT ->
-				printf("arr_itr:=%d\n",arr_itr);
 				if
 				::(all_students[student_id].books_issued[arr_itr] != -1)->
 					break;
@@ -331,31 +323,9 @@ proctype student(int student_id){
 				break;
 			od
 			
-			printf("kjafk\n");
+			
 			
 						
-			//this was removed starts
-			/*
-			do
-			::(offset_itr < book_offset) ->
-				if
-				::all_students[student_id].books_issued[arr_itr] == -1->
-					arr_itr++;
-				::else->
-					offset_itr++;
-					if
-					::(offset_itr == book_offset)->
-						break;
-					::else->
-						arr_itr++;
-					fi
-				fi
-			::else ->
-				break;
-			od*/
-			//arr_itr--;	
-			//set flag if there is a book to return
-			//this was removed ends
 			
 			
 			bool book_to_return;
@@ -366,7 +336,7 @@ proctype student(int student_id){
 				book_to_return = false;
 			fi
 
-			printf("\n%d,%d\n",book_to_return,arr_itr);
+			
 			
 			
 			//create book return message if  
@@ -379,16 +349,16 @@ proctype student(int student_id){
 				skip;
 			fi
 			
+			printf("\nNumber of book issued:%d",all_students[student_id].total_books_issued);
 			
-			printf("Here too\n");
 			if
 			//non-determinisically request a book
 			::book_request_channel!book_req_msg->
-				printf("Here\n");
+				printf("\nSending book request msg of %d to library from %d at %d",book_req_msg.book_id,student_id,current_time);
 				book_request_response_channel[student_id]?book_req_resp_msg;	
 			//non-deterministically return a book
 			::book_to_return==true ->
-				printf("\nSending return msg");
+				printf("\nSending return msg to library of %d from %d at %d",book_ret_msg.book_id,student_id,current_time);
 				book_return_channel!book_ret_msg;
 			
 			fi
@@ -396,15 +366,9 @@ proctype student(int student_id){
 		::else -> 
 			break;
 		od
-		/* 
-
-			nr--;
-		::else -> 
-			break;
-		od 
 		
 		
-		student_to_timer_channel[student_id]!true;*/	
+		student_to_timer_channel[student_id]!true;
   	od
 	
 }
