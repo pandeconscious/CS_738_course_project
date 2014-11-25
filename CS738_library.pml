@@ -78,7 +78,8 @@ proctype timer(){//should communicate with all processes and increment time only
 	do
 	::current_time = current_time+1;//increase time and go ahead asking the students and library to do whatever they want to do before furthe stepping in time
 		timer_to_library_channel!true; 	
-		printf("%d\n", current_time);	
+		printf("%d\n", current_time);
+		library_to_timer_channel?true;	
 		int i = 0;// send message to all the students
 		do
 		::i < current_student_count ->
@@ -87,7 +88,7 @@ proctype timer(){//should communicate with all processes and increment time only
 		::else ->
 			break;
 		od
-		library_to_timer_channel?true;
+		//library_to_timer_channel?true;
 		i = 0;// send message to all the students
 		do
 		::i < current_student_count ->
@@ -132,9 +133,9 @@ proctype library(){
 
 	do
 	::timer_to_library_channel?true ->	
-		library_to_timer_channel!true;
-		/*//fine calculation for each student
-		int st_it=0;
+		//library_to_timer_channel!true;
+		//fine calculation for each student
+		/*int st_it=0;
 		do
 		::st_it < current_student_count ->
 			
@@ -147,11 +148,11 @@ proctype library(){
 		:: else ->
 			break;
 		od*/
-
+		library_to_timer_channel!true;
 
 	//library receives a book return message
 	
-	/*::book_return_channel?book_ret_msg ->
+	::book_return_channel?book_ret_msg ->
 		printf("\nReceived return msg");
 		if
 		//if the book is not damaged update the database in accordance with return
@@ -182,12 +183,12 @@ proctype library(){
 			od
 		::else ; //else here means book is damaged (if required add code here)
 		fi
-	*/
+	
 	//library receives a book request message
 	
 	
 	::book_request_channel?book_req_msg ->
-		
+		printf("\nBook Request");	
 		bookreq_resp bookreq_resp_msg;	
 		bookreq_resp_msg.student_id = book_req_msg.student_id;
 		bookreq_resp_msg.book_id = book_req_msg.book_id;
@@ -265,12 +266,12 @@ proctype student(int student_id){
 		:: break;	// or stop 
 		od
 		//random no genration ends
-		
+		printf("\nnr:%d  \n",nr);
 		
 		do
 		::nr > 0 ->
 			//randomly generate the book id 
-			
+			//printf("Hereeeee:");	
 			//random no generation starts
 			int brq = 0; //bi holds how many books can be requested or claimed 
 			do
@@ -289,40 +290,57 @@ proctype student(int student_id){
 			//book request response message
 			bookreq_resp book_req_resp_msg;
 	
-			
+			/*	
 			//randomly generate the book number(offset) among the issued books that student will return
 			int book_offset = 0;
 			do
 			:: book_offset < all_students[student_id].total_books_issued -> book_offset++;
 			::break;
-			od
+			od*/
+			
 			
 			//pick the book to return
-			int offset_itr = 0;
+			//int offset_itr = 0;
 			int arr_itr = 0;
 			do
-			::(offset_itr < book_offset) && (arr_itr < MAX_BOOK_ISSUED_TO_STUDENT) ->
+			::arr_itr < MAX_BOOK_ISSUED_TO_STUDENT ->
+				printf("arr_itr:=%d\n",arr_itr);
+				if
+				::(all_students[student_id].books_issued[arr_itr] != -1)->
+					break;
+				::else->
+					arr_itr++;
+				fi	
+			od
+			//printf("kjafk\n");
+			/*do
+			::(offset_itr < book_offset) ->
 				if
 				::all_students[student_id].books_issued[arr_itr] == -1->
 					arr_itr++;
 				::else->
 					offset_itr++;
-					arr_itr++;
+					if
+					::(offset_itr == book_offset)->
+						break;
+					::else->
+						arr_itr++;
+					fi
 				fi
 			::else ->
 				break;
 			od
-			arr_itr--;	
+			//arr_itr--;*/	
 			//set flag if there is a book to return
 			bool book_to_return;
 			if
-			::book_offset > 0->
+			:: (arr_itr < MAX_BOOK_ISSUED_TO_STUDENT)->
 				book_to_return = true;
 			::else->
 				book_to_return = false;
 			fi
 
-			//printf("\n%d book offset",book_offset);
+			printf("\n%d,%d\n",book_to_return,arr_itr);
 
 			//create book return message if  
 			book_return book_ret_msg;
@@ -331,18 +349,20 @@ proctype student(int student_id){
 				book_ret_msg.student_id = student_id;
 				book_ret_msg.book_id = all_students[student_id].books_issued[arr_itr];
 			:: else ->
-				break;
+				skip;
 			fi
 			
+			printf("Here too\n");
 			if
 			//non-determinisically request a book
-			::book_request_channel!book_req_msg;
+			::book_request_channel!book_req_msg->
+				printf("Here\n");
 				book_request_response_channel[student_id]?book_req_resp_msg;	
 			//non-deterministically return a book
-			/*::book_to_return==true ->
+			::book_to_return==true ->
 				printf("\nSending return msg");
 				book_return_channel!book_ret_msg;
-			*/
+			
 			fi
 			nr--;
 		::else -> 
