@@ -58,6 +58,7 @@ typedef Student{
 	int renew_count[MAX_BOOK_ISSUED_TO_STUDENT];//book ids
 	int books_claimed[MAX_CLAIMS_BY_STUDENT];
 	int fine;
+	int books_damaged_by_student;
 };
 
 int current_time = 0;
@@ -155,7 +156,7 @@ proctype library(){
 	
 		//library_to_timer_channel!true;
 		//fine calculation for each student
-		printf("\nTimer to library received at time %d:",current_time);
+		printf("\n\nTimer to library received at time %d:",current_time);
 		library_to_timer_channel!true;
 		
 	
@@ -271,6 +272,7 @@ proctype student(int student_id){
 	od
 	
 	all_students[student_id].fine = 0;
+	all_students[student_id].books_damaged_by_student = 0;
 	//initialization ends
 	
 	
@@ -373,10 +375,45 @@ proctype student(int student_id){
 			::book_request_channel!book_req_msg->
 				printf("\nSending book request msg of %d to library from %d at %d",book_req_msg.book_id,student_id,current_time);
 				book_request_response_channel[student_id]?book_req_resp_msg;	
+			
 			//non-deterministically return a book
 			::book_to_return==true ->
 				printf("\nSending return msg to library of %d from %d at %d",book_ret_msg.book_id,student_id,current_time);
 				book_return_channel!book_ret_msg;
+			
+			//non-deterministicaly damage a book with student
+			
+			//first choose a random number to between 0 and 10
+			//if it is 3 damage the first issued book
+			//else don't damage any book
+
+			::int to_damage = 0; //nr holds how many transactions to be done
+				do
+					::to_damage < 10 -> to_damage++;		// randomly increment
+					:: break;	// or stop 
+				od
+				
+				if
+					::to_damage == 3->
+						int arr_i = 0;
+						do
+						::arr_i < MAX_BOOK_ISSUED_TO_STUDENT ->
+							int curr_book_id = all_students[student_id].books_issued[arr_i];
+							if
+							:: curr_book_id  != -1 ->
+								all_books[curr_book_id].damaged = true;
+								all_students[student_id].books_damaged_by_student++;
+								break;
+							::else->
+								arr_i++;
+							fi
+						::else ->
+							break;
+						od
+					::else->
+						skip;
+				fi
+
 			
 			fi
 			nr--;
