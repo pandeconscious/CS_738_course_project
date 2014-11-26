@@ -500,4 +500,4 @@ init
 }
 
 
-ltl { <>( flg==true )  }
+ltl { []( flg==false )  }
