@@ -77,10 +77,66 @@ chan library_to_timer_channel = [0] of {bool}; //library send to the timer that 
 chan timer_to_student_channel[MAX_STUDENTS] = [0] of {int}; //timer sends current time to the library
 chan student_to_timer_channel[MAX_STUDENTS] = [0] of {bool}; //library send to the timer that it has read and took appropriate actions at the time
 
+chan timer_to_check_number_of_books_channel=[0] of {bool};
+chan check_number_of_books_to_timer_channel=[0] of {bool};
+
+int flg=false;
+proctype check_number_of_books() {
+	//printf("\nStarted");
+	do	
+	:: timer_to_check_number_of_books_channel?true ->
+		//printf("Got msg\n");
+	  	int iterator=0;
+		int cnt=0;
+		int cnt2=0;
+	
+		do
+		::iterator<current_student_count ->
+			cnt=0;
+			int book_it=0;
+			//cnt=cnt+all_students[iterator].books_damaged_by_student;
+			int i = 0;
+			do
+			::i < MAX_BOOK_ISSUED_TO_STUDENT ->
+				if
+				::(all_students[iterator].books_issued[i] != -1) ->
+				  if
+				  ::all_books[all_students[iterator].books_issued[i]].damaged==true ->
+					cnt++;
+				  ::else ->
+					skip;
+				  fi
+				::else -> 
+					skip;
+				fi
+				i++;
+			::else -> 
+				break;
+			od;
+		
+			cnt2=cnt2+all_students[iterator].books_damaged_by_student;			 
+			iterator++;
+		::iterator==current_student_count ->
+			break;
+		od;
+		if
+		::cnt>cnt2 ->
+			flg=true;
+		::else ->
+			flg=false;
+		fi
+		  
+          	check_number_of_books_to_timer_channel!true;
+
+	od;
+}
+
 proctype timer(){//should communicate with all processes and increment time only when all processes have read the time
 	do
 	::current_time = current_time+1;//increase time and go ahead asking the students and library to do whatever they want to do before furthe stepping in time
-		
+		timer_to_check_number_of_books_channel!true;
+		check_number_of_books_to_timer_channel?true;		
+
 		timer_to_library_channel!true; 	
 		library_to_timer_channel?true;
 		int i = 0;// send message to all the students
@@ -105,7 +161,6 @@ proctype timer(){//should communicate with all processes and increment time only
 }
 
 proctype library(){
-
 	
 	
 	
@@ -341,7 +396,7 @@ proctype student(int student_id){
 			::else->
 				break;
 			od
-			
+		
 			
 			
 						
@@ -420,7 +475,8 @@ proctype student(int student_id){
 		::else -> 
 			break;
 		od
-		
+	
+			
 		
 		student_to_timer_channel[student_id]!true;
   	od
@@ -440,5 +496,8 @@ init
 	od
 	
 	run library();
+	run check_number_of_books();
 }
 
+
+ltl { <>( flg==true )  }
